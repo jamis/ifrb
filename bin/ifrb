@@ -1,0 +1,29 @@
+#!/bin/sh ruby
+
+require "irb"
+
+game = ARGV.pop or abort "please specify the game you'd like to play"
+game = game.gsub(/\.rb$/, "")
+
+if !File.exists?("#{game}.rb")
+  ex_path = File.join(File.dirname(__FILE__), "..", "examples", game)
+  if File.exists?("#{ex_path}.rb")
+    game = ex_path
+  else
+    abort "no such game `#{game}'"
+  end
+end
+
+old_setup = IRB.method(:setup)
+IRB.singleton_class.send(:define_method, :setup) do |*args|
+  old_setup.call(*args)
+  old_rc = IRB.conf[:IRB_RC]
+  IRB.conf[:IRB_RC] = ->(context) do
+    old_rc[context] if old_rc
+    command = "ifrb #{game.inspect}\n"
+    command.reverse.chars.each { |c| context.irb.scanner.ungetc(c) }
+  end
+end
+
+ARGV.push "-rifrb"
+IRB.start(__FILE__)
